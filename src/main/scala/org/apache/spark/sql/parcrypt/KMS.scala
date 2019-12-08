@@ -1,23 +1,27 @@
 package org.apache.spark.sql.parcrypt
 
+import java.io.ByteArrayOutputStream
 import java.nio.ByteBuffer
+import java.util.Base64
 
 import com.amazonaws.services.kms.AWSKMSClientBuilder
-import com.amazonaws.services.kms.model.{DecryptRequest, GenerateDataKeyRequest}
+import com.amazonaws.services.kms.model.{DecryptRequest, EncryptRequest}
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.fasterxml.jackson.module.scala.DefaultScalaModule
 import com.fasterxml.jackson.module.scala.experimental.ScalaObjectMapper
+import com.google.crypto.tink.proto.KeyTemplate
+import com.google.crypto.tink.{CleartextKeysetHandle, JsonKeysetWriter, KeysetHandle}
 import scalaj.http._
 
 import scala.collection.mutable
 
-class KMS {
+class KMS extends Serializable {
 
   // cache of keys that are already loaded
   private val cache: mutable.Map[(String, String), Array[Byte]] = mutable.HashMap()
 
   // TODO: handling revision keys
-  def dataKey(table: String, column: String): Array[Byte] = {
+  def dataKey(table: String, column: String, keyTemplate: KeyTemplate): Array[Byte] = {
     val dataKeyMaybe = cache.get((table, column))
     dataKeyMaybe match {
       case Some(dataKey) =>
@@ -48,38 +52,38 @@ class KMS {
           val parsedJson = mapper.readValue[Map[String, Object]](response.body)
 
           // TODO: do something with the parsed value
-          val encryptedDataKeyBuffer = parsedJson("data_key")
-          println(encryptedDataKeyBuffer)
-          throw new RuntimeException()
-          //          val encryptedDataKey: Array[Byte] = encryptedDataKeyBuffer.array()
-          //          println("Encrypted data key:", new String(encryptedDataKeyBuffer.array()))array
-          //
-          //          val encryptedBuffer: ByteBuffer = ByteBuffer.wrap(encryptedDataKey)
-          //          val request = new DecryptRequest().withCiphertextBlob(encryptedBuffer)
-          //          val result = kmsClient.decrypt(request) // TODO: handle failures
-          //          val decryptedBuffer = result.getPlaintext
-          //
-          //          dataKey = if (decryptedBuffer.hasArray) {
-          //            decryptedBuffer.array()
-          //          } else {
-          //            new Array[Byte](decryptedBuffer.remaining)
-          //          }
+          val encryptedDataKeyString: String = parsedJson("data_key").asInstanceOf[String]
+          val encryptedDataKey: Array[Byte] = Base64.getDecoder.decode(encryptedDataKeyString)
+
+          val encryptedBuffer: ByteBuffer = ByteBuffer.wrap(encryptedDataKey)
+          val request = new DecryptRequest().withCiphertextBlob(encryptedBuffer)
+          val result = kmsClient.decrypt(request) // TODO: handle failures
+          val decryptedBuffer = result.getPlaintext
+
+          dataKey = decryptedBuffer.array()
         } else if (response.code == 404) {
-          
-          println("Did not find data key in data key server, requesting new key from AWS")
+
+          println("Did not find data key in data key server, generating new key")
           // TODO: not hardcode keyId
-          val request = new GenerateDataKeyRequest().withKeyId("alias/test").withNumberOfBytes(32)
-          val result = kmsClient.generateDataKey(request)
-          val keyBuffer = result.getPlaintext
+          val keysetHandle = KeysetHandle.generateNew(keyTemplate)
+          val keysetStream = new ByteArrayOutputStream()
 
-          dataKey = keyBuffer.array()
+          CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(keysetStream))
 
-          val encryptedDataKey = new String(result.getCiphertextBlob.array())
+          dataKey = keysetStream.toByteArray
+          val dataKeyBuffer = ByteBuffer.wrap(dataKey)
+          val request = new EncryptRequest().withKeyId("alias/test").withPlaintext(dataKeyBuffer)
+          val result = kmsClient.encrypt(request)
+
+          val encryptedDataKey = Base64.getEncoder.encodeToString(result.getCiphertextBlob.array())
           println("Putting encrypted key in data key server")
           // TODO: audit putting the keys
           // TODO: actual string formatting
+          val mapper = new ObjectMapper() with ScalaObjectMapper
+          mapper.registerModule(DefaultScalaModule)
+          val payload = "{ \"data_key\":\"" + encryptedDataKey + "\"}"
           Http(url)
-            .put("{\"data_key\":\"" + encryptedDataKey + "\"}")
+            .put(payload)
             .asBytes
         } else {
           throw new RuntimeException("Failed to fetch key")

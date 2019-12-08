@@ -78,7 +78,22 @@ func putDataKey(c *gin.Context) {
 		return
 	}
 
-	_, err = etcd.Put(context.Background(), key, d.DataKey)
+	getResp, err := etcd.Get(context.Background(), key)
+	if err != nil {
+		log.Printf("Failed to get key: %v", err)
+		c.JSON(http.StatusInternalServerError, gin.H{"error": err})
+		return
+	}
+
+	if getResp.Count > 0 {
+		c.JSON(http.StatusConflict, gin.H{})
+		return
+	}
+
+	// Need to avoid race condition
+	txn := etcd.Txn(context.Background())
+	_, err = txn.If(clientv3.Compare(clientv3.ModRevision(key), "=", 0)).Then(
+		clientv3.OpPut(key, d.DataKey)).Commit()
 	if err != nil {
 		log.Printf("Failed to insert data key: %v\n", err)
 		c.JSON(http.StatusBadRequest, gin.H{

@@ -8,7 +8,7 @@ import com.google.crypto.tink.daead.DeterministicAeadKeyTemplates
 import com.google.crypto.tink.{CleartextKeysetHandle, JsonKeysetWriter, KeysetHandle}
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.parcrypt.functions._
+import org.apache.spark.sql.parcrypt.CustomFunctions._
 import org.apache.spark.sql.test.SharedSparkSession
 
 class CoreSuite extends QueryTest with SharedSparkSession {
@@ -18,33 +18,25 @@ class CoreSuite extends QueryTest with SharedSparkSession {
   test("rnd") {
     // TODO: reduce boilerplate at top of every test
     TinkConfig.register()
-    val keysetHandle = KeysetHandle.generateNew(AeadKeyTemplates.AES128_GCM)
-    val keysetStream = new ByteArrayOutputStream()
-
-    CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(keysetStream))
-    val masterKey = keysetStream.toByteArray
+    val kms = new KMS
 
     val plaintext = "rnd-plaintext"
-    val ciphertext1 = encryptRnd(plaintext.getBytes(), masterKey)
-    val ciphertext2 = encryptRnd(plaintext.getBytes(), masterKey)
+    val ciphertext1 = encryptRnd(plaintext.getBytes(), "rnd", "col", kms)
+    val ciphertext2 = encryptRnd(plaintext.getBytes(), "rnd", "col", kms)
 
     assert(!(ciphertext1 sameElements ciphertext2))
 
-    val output = decryptRnd(ciphertext1, masterKey)
+    val output = decryptRnd(ciphertext1, "rnd", "col", kms)
 
     assert(output === plaintext.getBytes())
   }
 
   test("rnd-df") {
     TinkConfig.register()
-    val keysetHandle = KeysetHandle.generateNew(AeadKeyTemplates.AES128_GCM)
-    val keysetStream = new ByteArrayOutputStream()
+    val kms = new KMS
 
-    CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(keysetStream))
-    val masterKey = keysetStream.toByteArray
-
-    val encryptUDF = udf((value: Array[Byte]) => encryptRnd(value, masterKey))
-    val decryptUDF = udf((value: Array[Byte]) => decryptRnd(value, masterKey))
+    val encryptUDF = udf((value: Array[Byte]) => encryptRnd(value, "rnd-df", "col", kms))
+    val decryptUDF = udf((value: Array[Byte]) => decryptRnd(value, "rnd-df", "col", kms))
 
     val df = Seq(("abc", "def")).toDF("a", "b")
     val first = df
@@ -56,32 +48,25 @@ class CoreSuite extends QueryTest with SharedSparkSession {
 
   test("det") {
     TinkConfig.register()
-    val keysetHandle = KeysetHandle.generateNew(DeterministicAeadKeyTemplates.AES256_SIV)
-    val keysetStream = new ByteArrayOutputStream()
-    CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(keysetStream))
-    val masterKey = keysetStream.toByteArray
+    val kms = new KMS
 
     val plaintext = "det-plaintext"
-    val ciphertext1 = encryptDet(plaintext.getBytes(), masterKey)
-    val ciphertext2 = encryptDet(plaintext.getBytes(), masterKey)
+    val ciphertext1 = encryptDet(plaintext.getBytes(), "det", "a", kms)
+    val ciphertext2 = encryptDet(plaintext.getBytes(), "det", "a", kms)
 
     assert(ciphertext1 sameElements ciphertext2)
 
-    val output = decryptDet(ciphertext1, masterKey)
+    val output = decryptDet(ciphertext1, "det", "a", kms)
 
     assert(output === plaintext.getBytes())
   }
 
   test("det-df") {
     TinkConfig.register()
-    val keysetHandle = KeysetHandle.generateNew(DeterministicAeadKeyTemplates.AES256_SIV)
-    val keysetStream = new ByteArrayOutputStream()
+    val kms = new KMS
 
-    CleartextKeysetHandle.write(keysetHandle, JsonKeysetWriter.withOutputStream(keysetStream))
-    val masterKey = keysetStream.toByteArray
-
-    val encryptUDF = udf((value: Array[Byte]) => encryptDet(value, masterKey))
-    val decryptUDF = udf((value: Array[Byte]) => decryptDet(value, masterKey))
+    val encryptUDF = udf((value: Array[Byte]) => encryptDet(value, "dets", "a", kms))
+    val decryptUDF = udf((value: Array[Byte]) => decryptDet(value, "dets", "a", kms))
 
     val df = Seq(("abc", "def"), ("abc", "def")).toDF("a", "b")
     val encryptedDF = df

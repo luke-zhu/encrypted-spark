@@ -50,13 +50,13 @@ func TestPutGet(t *testing.T) {
 	assert.Equal(t, "abdefg", data1["data_key"])
 	assert.Equal(t, nil, data1["prev_revision"])
 
-	// 2nd PUT should succeed
+	// 2nd PUT should fail
 	w = httptest.NewRecorder()
 	body2 := strings.NewReader("{ \"data_key\": \"hijklmnop\" }")
 	req, _ = http.NewRequest(http.MethodPut, "/keys/my_table/my_column", body2)
 	router.ServeHTTP(w, req)
 
-	assert.Equal(t, http.StatusOK, w.Code)
+	assert.Equal(t, http.StatusConflict, w.Code)
 
 	// GET after PUT should return the 2nd version
 	w = httptest.NewRecorder()
@@ -66,8 +66,8 @@ func TestPutGet(t *testing.T) {
 	json.Unmarshal(w.Body.Bytes(), &data2)
 
 	assert.Equal(t, http.StatusOK, w.Code)
-	assert.Equal(t, "hijklmnop", data2["data_key"])
-	assert.NotEqual(t, nil, data2["prev_revision"])
+	assert.Equal(t, "abdefg", data2["data_key"])
+	assert.Equal(t, nil, data2["prev_revision"])
 
 	// DELETE should succeed
 	w = httptest.NewRecorder()
