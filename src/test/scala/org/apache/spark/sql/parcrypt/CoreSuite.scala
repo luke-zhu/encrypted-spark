@@ -8,7 +8,7 @@ import com.google.crypto.tink.daead.DeterministicAeadKeyTemplates
 import com.google.crypto.tink.{CleartextKeysetHandle, JsonKeysetWriter, KeysetHandle}
 import org.apache.spark.sql.QueryTest
 import org.apache.spark.sql.functions.{col, udf}
-import org.apache.spark.sql.parcrypt.Cryptdb._
+import org.apache.spark.sql.parcrypt.functions._
 import org.apache.spark.sql.test.SharedSparkSession
 
 class CoreSuite extends QueryTest with SharedSparkSession {

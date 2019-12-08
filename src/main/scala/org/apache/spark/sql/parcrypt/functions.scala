@@ -2,9 +2,10 @@ package org.apache.spark.sql.parcrypt
 
 import com.google.crypto.tink.{Aead, CleartextKeysetHandle, DeterministicAead, JsonKeysetReader}
 
-object Cryptdb {
-  // TODO: register as UDFs
+// TODO: these should be Spark native functions
+object functions {
   // TODO: IV fns?
+  // TODO: homomorphic encryption
   def decryptRnd(value: Array[Byte], key: Array[Byte]): Array[Byte] = {
     val keysetHandle = CleartextKeysetHandle.read(JsonKeysetReader.withBytes(key))
     val aead = keysetHandle.getPrimitive(classOf[Aead])

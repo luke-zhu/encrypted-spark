@@ -63,6 +63,11 @@
             <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
         </dependency>
+        <dependency>
+            <groupId>org.apache.spark</groupId>
+            <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+            <version>${spark.version}</version>
+        </dependency>
 
         <!-- Spark test helpers (ex. SharedSparkSession) -->
         <dependency>
@@ -74,14 +79,14 @@
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
+            <artifactId>spark-sql_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
         </dependency>
         <dependency>
             <groupId>org.apache.spark</groupId>
-            <artifactId>spark-sql_${scala.binary.version}</artifactId>
+            <artifactId>spark-catalyst_${scala.binary.version}</artifactId>
             <version>${spark.version}</version>
             <scope>test</scope>
             <type>test-jar</type>
@@ -98,7 +103,21 @@
             <artifactId>protobuf-java</artifactId>
             <version>3.10.0</version>
         </dependency>
+
+        <!-- AWS -->
+        <dependency>
+            <groupId>com.amazonaws</groupId>
+            <artifactId>aws-java-sdk-kms</artifactId>
+            <version>1.11.632</version>
+        </dependency>
+
+        <dependency>
+            <groupId>org.scalaj</groupId>
+            <artifactId>scalaj-http_${scala.binary.version}</artifactId>
+            <version>2.4.2</version>
+        </dependency>
     </dependencies>
+
 
     <build>
         <sourceDirectory>src/main/scala</sourceDirectory>
