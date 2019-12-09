@@ -13,6 +13,10 @@
             <name>Artima Maven Repository</name>
             <url>http://repo.artima.com/releases</url>
         </repository>
+        <repository>
+            <id>sparkfhe-remote</id>
+            <url>https://github.com/SpiRITlab/SparkFHE-Maven-Repo/raw/${sparkfhe.lib.rev}</url>
+        </repository>
     </repositories>
 
     <properties>
@@ -20,11 +24,58 @@
         <maven.compiler.source>${java.version}</maven.compiler.source>
         <maven.compiler.target>${java.version}</maven.compiler.target>
 
-        <scala.version>2.12.10</scala.version>
-        <scala.binary.version>2.12</scala.binary.version>
+        <scala.version>2.11.12</scala.version>
+        <scala.binary.version>2.11</scala.binary.version>
 
         <spark.version>2.4.4</spark.version>
+
+        <sparkfhe.lib.rev>master</sparkfhe.lib.rev>
+        <sparkfhe.lib.url.base>https://github.com/SpiRITlab/SparkFHE-Maven-Repo/raw/${sparkfhe.lib.rev}/libSparkFHE
+        </sparkfhe.lib.url.base>
+        <downloaded.sparkfhe.lib.path>libSparkFHE/lib</downloaded.sparkfhe.lib.path>
     </properties>
+
+    <profiles>
+        <profile>
+            <id>unix-x86</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <name>Linux</name>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <sparkfhe.lib.url>${sparkfhe.lib.url.base}/libSparkFHE-unix-x86_64.zip</sparkfhe.lib.url>
+            </properties>
+        </profile>
+        <profile>
+            <id>unix-amd64</id>
+            <activation>
+                <os>
+                    <family>unix</family>
+                    <name>linux</name>
+                    <arch>amd64</arch>
+                </os>
+            </activation>
+            <properties>
+                <sparkfhe.lib.url>${sparkfhe.lib.url.base}/libSparkFHE-unix-amd64.zip</sparkfhe.lib.url>
+            </properties>
+        </profile>
+        <profile>
+            <id>mac-x86</id>
+            <activation>
+                <os>
+                    <family>mac</family>
+                    <name>mac os x</name>
+                    <arch>x86_64</arch>
+                </os>
+            </activation>
+            <properties>
+                <sparkfhe.lib.url>${sparkfhe.lib.url.base}/libSparkFHE-mac-x86_64.zip</sparkfhe.lib.url>
+            </properties>
+        </profile>
+    </profiles>
 
 
     <dependencies>
@@ -92,17 +143,32 @@
             <type>test-jar</type>
         </dependency>
 
-        <dependency>
-            <groupId>com.google.crypto.tink</groupId>
-            <artifactId>tink</artifactId>
-            <version>1.3.0-rc1</version>
-        </dependency>
-        <!-- Needed but not included by Tink -->
-        <dependency>
-            <groupId>com.google.protobuf</groupId>
-            <artifactId>protobuf-java</artifactId>
-            <version>3.10.0</version>
-        </dependency>
+        <!--        <dependency>-->
+        <!--            <groupId>com.google.crypto.tink</groupId>-->
+        <!--            <artifactId>tink</artifactId>-->
+        <!--            <version>1.3.0-rc2</version>-->
+        <!--        </dependency>-->
+        <!--        &lt;!&ndash; Needed but not included by Tink &ndash;&gt;-->
+        <!--        <dependency>-->
+        <!--            <groupId>com.google.protobuf</groupId>-->
+        <!--            <artifactId>protobuf-java</artifactId>-->
+        <!--            <version>3.10.0</version>-->
+        <!--        </dependency>-->
+
+<!--        <dependency>-->
+<!--            <groupId>spiritlab.sparkfhe</groupId>-->
+<!--            <artifactId>spark-fhe_${scala.binary.version}</artifactId>-->
+<!--            <version>1.0-SNAPSHOT</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
+<!--        <dependency>-->
+<!--            <groupId>spiritlab.sparkfhe</groupId>-->
+<!--            <artifactId>sparkfhe-api</artifactId>-->
+<!--            <version>1.0-SNAPSHOT</version>-->
+<!--            <scope>compile</scope>-->
+<!--        </dependency>-->
+
+
 
         <!-- AWS -->
         <dependency>
@@ -163,6 +229,33 @@
                         <id>test</id>
                         <goals>
                             <goal>test</goal>
+                        </goals>
+                    </execution>
+                </executions>
+            </plugin>
+
+            <plugin>
+                <groupId>org.apache.maven.plugins</groupId>
+                <artifactId>maven-shade-plugin</artifactId>
+                <version>3.2.1</version>
+                <configuration>
+                    <!-- put your configurations here -->
+                    <filters>
+                        <filter>
+                            <artifact>*:*</artifact>
+                            <excludes>
+                                <exclude>META-INF/*.SF</exclude>
+                                <exclude>META-INF/*.DSA</exclude>
+                                <exclude>META-INF/*.RSA</exclude>
+                            </excludes>
+                        </filter>
+                    </filters>
+                </configuration>
+                <executions>
+                    <execution>
+                        <phase>package</phase>
+                        <goals>
+                            <goal>shade</goal>
                         </goals>
                     </execution>
                 </executions>
